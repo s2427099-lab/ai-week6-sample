@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>帰り道のメンタルケア・チャットボット</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome (for icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* カスタムスクロールバー & アニメーション */
+        .chat-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-container::-webkit-scrollbar-thumb {
+            background-color: rgba(156, 163, 175, 0.3);
+            border-radius: 20px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-tr from-indigo-100 via-purple-50 to-pink-100 min-h-screen flex flex-col justify-between font-sans text-gray-800">
+
+    <!-- ヘッダー -->
+    <header class="bg-white/80 backdrop-blur-md border-b border-purple-100 sticky top-0 z-10 py-4 px-6 flex items-center justify-between shadow-sm">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-mug-hot text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-gray-800 tracking-wide text-base sm:text-lg">寄り道メンタルケア</h1>
+                <p class="text-xs text-purple-500 flex items-center">
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse mr-1.5"></span>
+                    お疲れ様のチャットボット
+                </p>
+            </div>
+        </div>
+        <button id="reset-btn" class="text-xs font-semibold px-3 py-1.5 rounded-full border border-purple-200 text-purple-600 hover:bg-purple-50 transition-colors flex items-center gap-1">
+            <i class="fa-solid fa-rotate-left"></i> 最初から
+        </button>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="flex-1 max-w-2xl w-full mx-auto p-4 flex flex-col justify-between overflow-hidden">
+        
+        <!-- チャット表示エリア -->
+        <div id="chat-box" class="chat-container flex-1 overflow-y-auto space-y-4 py-4 px-2 pr-4 mb-4 min-h-[350px] max-h-[calc(100vh-220px)]">
+            <!-- 動的にメッセージが追加されます -->
+        </div>
+
+        <!-- ユーザー入力エリア (下部に固定) -->
+        <div id="input-area" class="bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-purple-100 transition-all duration-300">
+            <!-- 選択ボタン用のコンテナ -->
+            <div id="choice-container" class="hidden grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 mb-2">
+                <!-- JavaScriptで選択肢を生成 -->
+            </div>
+
+            <!-- テキスト入力用（セクション4用） -->
+            <div id="text-input-container" class="hidden flex items-center space-x-2">
+                <input type="text" id="free-text-input" placeholder="ここに入力してください..." class="flex-1 px-4 py-3 rounded-xl border border-purple-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm transition-all bg-purple-50/30">
+                <button id="send-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-3 rounded-xl transition-all shadow-md shadow-indigo-100 flex items-center gap-2">
+                    <span>送信</span>
+                    <i class="fa-solid fa-paper-plane text-xs"></i>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- フッター -->
+    <footer class="py-3 text-center text-xs text-purple-400 border-t border-purple-50/50 bg-white/30 backdrop-blur-sm">
+        &copy; 寄り道メンタルケア. 心地よい帰り道になりますように。
+    </footer>
+
+    <!-- 音声効果（オプションとしてロード、操作音に） -->
+    <script>
+        // 食品データ（画像URLを廃止し、代わりにマッチするフォントアイコンを指定）
+        const foodDatabase = {
+            "tired": {
+                status: "疲労",
+                title: "1食分の鉄分が摂れる ココア",
+                store: "ローソン",
+                icon: "fa-mug-hot",
+                iconColor: "text-amber-700 bg-amber-50",
+                tag: "ココア",
+                recommendation: "今日は疲労がたまってるんだね。それなら、ローソンの「1食分の鉄分が摂れる ココア」をおすすめするよ。疲労に対しては糖や鉄分の摂取が効果的とされているから、帰り道に飲みながらまずはリラックスしてみよう。"
+            },
+            "tense": {
+                status: "緊張",
+                title: "もちもち食感クレープ チョコバナナ",
+                store: "セブンイレブン",
+                icon: "fa-cookie",
+                iconColor: "text-yellow-600 bg-yellow-50",
+                tag: "チョコバナナクレープ",
+                recommendation: "今日は緊張したんだね。それなら、セブンイレブンの「もちもち食感クレープ チョコバナナ」をおすすめするよ。マグネシウムやセロトニンには、精神を落ち着かせる効果があるんだ。また、トリプトファンには安眠を助ける効果もあるから、今日は家に帰ってゆっくり休おう。"
+            },
+            "stressed": {
+                status: "ストレス",
+                title: "ヨーグルトスムージー アサイーボウル",
+                store: "ローソン",
+                icon: "fa-blender",
+                iconColor: "text-purple-600 bg-purple-50",
+                tag: "アサイースムージー",
+                recommendation: "今日はストレスが溜まってるようだね。それなら、ローソンの「ヨーグルトスムージー アサイーボウル」をおすすめするよ。この商品に含まれる乳酸菌やビタミンＣはストレス回復や精神安定に高い効果を持っている上に、他にも様々なビタミンが含まれているから、ピッタリな商品んだ。甘い飲み物と深呼吸で、一旦落ち着いてみよう。"
+            },
+            "sluggish": {
+                status: "だるい",
+                title: "ザクほろシュー（チョコクリーム）",
+                store: "ファミリーマート",
+                icon: "fa-ice-cream",
+                iconColor: "text-brown-600 bg-amber-100/50",
+                tag: "シュークリーム",
+                recommendation: "今日は体がだるいみたいだね。それなら、ファミリーマートの「ザクほろシュー（チョコクリーム）」をおすすめするよ。体のだるさは脳のエネルギー不足や寝不足が原因かも。糖分は脳に効率的にエネルギーを与えることができるし、チョコレートは疲労に効きやすいとされているんだ。今日の疲れを取るためにも、残りの時間はゆっくり休もう。"
+            },
+            "fine": {
+                status: "健康",
+                title: "ファミチキ（骨なし）",
+                store: "ファミリーマート",
+                icon: "fa-drumstick-bite",
+                iconColor: "text-orange-600 bg-orange-50",
+                tag: "フライドチキン",
+                recommendation: "今日は元気んだね！それなら自分へのご褒美として、ファミリーマートの「ファミチキ（骨なし）」をおすすめするよ。今日を頑張った自分へのご褒美として、おいしいものを食べることは、元気を長続きさせるために効果的なんだ。でも、食べすぎは逆に体に悪影響が出ちゃうから、ほどほどにね。"
+            }
+        };
+
+        const choices = [
+            { id: "tired", text: "疲れた", icon: "fa-battery-empty", color: "from-amber-400 to-orange-500" },
+            { id: "tense", text: "緊張した", icon: "fa-bolt", color: "from-teal-400 to-emerald-500" },
+            { id: "stressed", text: "ストレス", icon: "fa-brain", color: "from-pink-400 to-rose-500" },
+            { id: "sluggish", text: "だるい", icon: "fa-cloud-rain", color: "from-blue-400 to-indigo-500" },
+            { id: "fine", text: "問題なし", icon: "fa-face-smile", color: "from-green-400 to-teal-500" }
+        ];
+
+        // 各種DOM要素
+        const chatBox = document.getElementById("chat-box");
+        const choiceContainer = document.getElementById("choice-container");
+        const textInputContainer = document.getElementById("text-input-container");
+        const freeTextInput = document.getElementById("free-text-input");
+        const sendBtn = document.getElementById("send-btn");
+        const resetBtn = document.getElementById("reset-btn");
+
+        // ボットのメッセージ出力用の遅延
+        const botDelay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        // メッセージ生成関数
+        function createMessageElement(sender, content, extraClass = "") {
+            const wrapper = document.createElement("div");
+            wrapper.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in ${extraClass}`;
+
+            const isBot = sender === 'bot';
+            
+            // アイコン
+            const iconHtml = isBot 
+                ? `<div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs shadow-sm flex-shrink-0">
+                     <i class="fa-solid fa-mug-hot"></i>
+                   </div>`
+                : '';
+
+            const bubbleClass = isBot
+                ? 'bg-white text-gray-800 rounded-2xl rounded-tl-sm shadow-md border border-purple-50/50'
+                : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl rounded-tr-sm shadow-md';
+
+            wrapper.innerHTML = `
+                <div class="flex items-start space-x-2 max-w-[85%]">
+                    ${iconHtml}
+                    <div class="${bubbleClass} p-3.5 text-sm leading-relaxed whitespace-pre-line">
+                        ${content}
+                    </div>
+                </div>
+            `;
+            return wrapper;
+        }
+
+        // 入力中インジケータ (タイピング風)
+        function createTypingIndicator() {
+            const wrapper = document.createElement("div");
+            wrapper.id = "typing-indicator";
+            wrapper.className = "flex justify-start animate-fade-in";
+            wrapper.innerHTML = `
+                <div class="flex items-start space-x-2 max-w-[85%]">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs shadow-sm flex-shrink-0 animate-pulse">
+                        <i class="fa-solid fa-mug-hot"></i>
+                    </div>
+                    <div class="bg-white rounded-2xl rounded-tl-sm shadow-sm border border-purple-50/50 p-4 flex items-center space-x-1">
+                        <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                        <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></div>
+                        <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0.3s"></div>
+                    </div>
+                </div>
+            `;
+            return wrapper;
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById("typing-indicator");
+            if (indicator) indicator.remove();
+        }
+
+        // スクロールを最下部に移動
+        function scrollToBottom() {
+            chatBox.scrollTo({
+                top: chatBox.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+
+        // アプリケーションの状態管理
+        let currentSection = 1;
+        let selectedStatusId = null;
+
+        // ボットの初期導入メッセージ
+        async function startSession() {
+            chatBox.innerHTML = "";
+            currentSection = 1;
+            selectedStatusId = null;
+            hideAllInputs();
+
+            chatBox.appendChild(createTypingIndicator());
+            scrollToBottom();
+            await botDelay(1000);
+            removeTypingIndicator();
+
+            // セクション1：導入（リラックスの提案）
+            const welcomeMsg = `まずはお疲れ様。呼吸を整えて軽くリラックスしてみよう。\n\n今日も一日頑張ったあなたへ、ホッと一息つけるコンビニの食品を提案するね。`;
+            chatBox.appendChild(createMessageElement('bot', welcomeMsg));
+            scrollToBottom();
+
+            await botDelay(1000);
+            
+            // セクション2：状態の選択
+            chatBox.appendChild(createTypingIndicator());
+            scrollToBottom();
+            await botDelay(800);
+            removeTypingIndicator();
+
+            chatBox.appendChild(createMessageElement('bot', "今のあなたの気分や状態はどんな感じかな？\n下のボタンから一番近いやつを選んでみてね。"));
+            showChoiceInput();
+            scrollToBottom();
+        }
+
+        // 状態選択ボタンの表示
+        function showChoiceInput() {
+            hideAllInputs();
+            choiceContainer.innerHTML = "";
+            choiceContainer.classList.remove("hidden");
+
+            choices.forEach(choice => {
+                const btn = document.createElement("button");
+                btn.className = `flex flex-col items-center justify-center p-3 rounded-xl border border-purple-100 bg-white hover:bg-purple-50 hover:border-purple-300 transition-all duration-300 active:scale-95 shadow-sm hover:shadow-md text-gray-700`;
+                btn.onclick = () => handleChoiceSelect(choice.id, choice.text);
+                btn.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br ${choice.color} flex items-center justify-center text-white mb-1.5 shadow-sm">
+                        <i class="fa-solid ${choice.icon} text-base"></i>
+                    </div>
+                    <span class="text-xs font-bold">${choice.text}</span>
+                `;
+                choiceContainer.appendChild(btn);
+            });
+        }
+
+        // 選択された後の処理
+        async function handleChoiceSelect(choiceId, choiceText) {
+            selectedStatusId = choiceId;
+            hideAllInputs();
+
+            // ユーザーメッセージの追加
+            chatBox.appendChild(createMessageElement('user', choiceText));
+            scrollToBottom();
+
+            await botDelay(800);
+
+            // セクション3：食品の提案
+            chatBox.appendChild(createTypingIndicator());
+            scrollToBottom();
+            await botDelay(1500);
+            removeTypingIndicator();
+
+            const food = foodDatabase[choiceId];
+            
+            // 食品提案カードの作成 (画像を廃止し、アイコンを用いたすっきりしたレイアウトに変更)
+            const cardHtml = `
+                <div class="font-sans">
+                    <div class="mb-3">${food.recommendation}</div>
+                    
+                    <!-- 提案カードUI -->
+                    <div class="bg-gradient-to-br from-white to-purple-50/40 border border-purple-100 rounded-xl overflow-hidden shadow-sm mt-3 p-4 flex items-center space-x-4">
+                        <!-- 商品をイメージしたアイコン表示エリア -->
+                        <div class="w-16 h-16 rounded-xl flex items-center justify-center text-2xl shadow-inner ${food.iconColor} flex-shrink-0">
+                            <i class="fa-solid ${food.icon}"></i>
+                        </div>
+                        
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    <i class="fa-solid fa-store mr-0.5"></i> ${food.store}
+                                </span>
+                                <span class="text-[10px] text-gray-400 font-medium">${food.tag}</span>
+                            </div>
+                            <h3 class="font-bold text-gray-800 text-sm sm:text-base truncate">
+                                ${food.title}
+                            </h3>
+                            <div class="flex items-center gap-1.5 mt-2 text-[11px] text-purple-600">
+                                <span class="bg-purple-100/50 rounded-full px-2 py-0.5 font-medium">
+                                    #${food.status}ケア
+                                </span>
+                                <span class="bg-pink-100/50 rounded-full px-2 py-0.5 font-medium">
+                                    #ご褒美おやつ
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            chatBox.appendChild(createMessageElement('bot', cardHtml));
+            scrollToBottom();
+
+            await botDelay(1500);
+
+            // セクション4：一日の振り返り
+            chatBox.appendChild(createTypingIndicator());
+            scrollToBottom();
+            await botDelay(1000);
+            removeTypingIndicator();
+
+            const questionMsg = `最後に、今日良かったことを一つだけ教えて。\nどんな小さなことでも大丈夫だよ。\n\n「信号に捕まらなかった」「天気が良かった」「仕事が一歩進んだ」など、思いついたことを書いてみてね。`;
+            chatBox.appendChild(createMessageElement('bot', questionMsg));
+            showTextInput();
+            scrollToBottom();
+        }
+
+        // テキスト入力の表示
+        function showTextInput() {
+            hideAllInputs();
+            textInputContainer.classList.remove("hidden");
+            freeTextInput.value = "";
+            freeTextInput.focus();
+        }
+
+        // 入力の非表示
+        function hideAllInputs() {
+            choiceContainer.classList.add("hidden");
+            textInputContainer.classList.add("hidden");
+        }
+
+        // 一日の振り返り送信
+        async function handleFreeTextSubmit() {
+            const text = freeTextInput.value.trim();
+            if (!text) return;
+
+            hideAllInputs();
+
+            // ユーザーメッセージを追加
+            chatBox.appendChild(createMessageElement('user', text));
+            scrollToBottom();
+
+            await botDelay(1000);
+
+            chatBox.appendChild(createTypingIndicator());
+            scrollToBottom();
+            await botDelay(1500);
+            removeTypingIndicator();
+
+            // 肯定的な温かいリアクション
+            const reactions = [
+                `素敵だね！そんな風に良かったことを見つけられるって、素晴らしいことだよ。\n教えてくれてありがとう。`,
+                `小さな喜びを大切にできるの、とても素敵。その調子でゆっくり休んで、良い夜を過ごしてね。`,
+                `日常の小さなハッピーに目を向けられたこと、それだけで今日一日が素晴らしいものになるね。\nよくがんばったね。`,
+                `些細なことでも、それを見つけるだけで心が少し温かくなるよね。今日のご褒美と一緒に、幸せな気持ちで眠りにつけますように。`
+            ];
+            
+            const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
+            const closingMsg = `${randomReaction}\n\n帰り道、足元に気をつけて帰ってね。おいしいおやつと一緒に、今夜はゆっくり自分を癒してあげて。`;
+
+            chatBox.appendChild(createMessageElement('bot', closingMsg));
+            
+            // 最後のハートフルなカードを表示
+            await botDelay(1000);
+            chatBox.appendChild(createMessageElement('bot', `
+                <div class="text-center p-3 bg-gradient-to-br from-indigo-50 to-pink-50 rounded-xl border border-purple-100 shadow-inner">
+                    <p class="text-xs text-indigo-500 font-semibold">🍀 今日のケアセッション完了 🍀</p>
+                    <p class="text-[11px] text-gray-500 mt-1">またリラックスしたくなったらいつでも話しかけてね。</p>
+                </div>
+            `));
+            
+            scrollToBottom();
+        }
+
+        // イベントハンドラー設定
+        sendBtn.onclick = handleFreeTextSubmit;
+        freeTextInput.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                handleFreeTextSubmit();
+            }
+        };
+
+        resetBtn.onclick = () => {
+            if(confirm("セッションをリセットして最初からやり直しますか？")) {
+                startSession();
+            }
+        };
+
+        // 初期ロード
+        window.onload = () => {
+            startSession();
+        };
+    </script>
+</body>
+</html>
